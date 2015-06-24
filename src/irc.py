@@ -269,7 +269,6 @@ network = 'irc.twitch.tv'
 
 
 channel = '#potatozero'
-oauth = 'oauth:zayj9ocfmxvvqzx34n8yj07m8pvi5i'
 nick = 'tobotatop'
 
 if __name__ == '__main__':
