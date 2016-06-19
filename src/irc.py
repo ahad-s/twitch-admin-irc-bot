@@ -279,10 +279,15 @@ class Bot():
 	def start(self):
 		# while not self.connected: -- EDIT THIS TO ENSURE THAT IT'S ALWAYS CONNECTED
 		self.connect()
+<<<<<<< HEAD
+=======
+		print "connected..."
+>>>>>>> d5342c0151128b05a60df462ed8fa7f819a2e2ac
 		self.start_connection()
 
 
 network = 'irc.twitch.tv'
+oauth = "oauth:rf53yw4q06mooxt3sdsiylvzuita7u" 
 
 nick = 'tobotatop'
 
