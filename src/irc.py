@@ -287,7 +287,6 @@ class Bot():
 
 
 network = 'irc.twitch.tv'
-oauth = "oauth:rf53yw4q06mooxt3sdsiylvzuita7u" 
 
 nick = 'tobotatop'
 
