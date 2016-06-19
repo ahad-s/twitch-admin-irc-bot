@@ -1,12 +1,13 @@
 import socket
 from threading import Thread
 from sys import exit
+import sys
 import os
 from datetime import datetime
 import multiprocessing
 
 
-global port = 6667
+port = 6667
 
 
 class Bot():
@@ -47,7 +48,6 @@ class Bot():
 			if len(data) == 0:
 				break
 				# instead of break, make it reconnect to server
-
 			self.parse_data(data)
 		self.s.close()
 		exit(0)
@@ -59,8 +59,6 @@ class Bot():
 		return
 
 	def parse_data(self, data):
-
-		data = data
 
 		if 'PING' in data:
 			self.pong(data)
@@ -109,10 +107,10 @@ class Bot():
 					try:
 						self.use_command(command)
 						return
-					except:
-						pass
-			except:
-				pass
+					except Exception as e:
+						print e
+			except Exception as e:
+				print e
 		else:
 			print data
 
@@ -127,14 +125,21 @@ class Bot():
 		# if admin types @test_environment, switch interpretation by bot to raw (no parsing)
 		# allow admin to test raw commands in twitch chat
 
+	def display(self, text):
+		self.s.send("PRIVMSG " + channel + " :" + text + "\r\n")
 
 	def display_comms(self):
 		all_comms = self.get_comms()
 		all_comms = str(all_comms).strip('[]').replace("'","") # turns from a list to text for user
+		self.display("Commands: " + all_comms)
 
-		self.s.send("PRIVMSG "+channel+" :Commands: "+all_comms+"\r\n")
-
-
+	def display_help(self):
+		text = "Type \"!comms\" to check \
+			out all available commands! Type \"![command]\" to use the command!\
+			Type \"!addcomm [command_name] [command_text]\" to add a new command!\
+			Type \"!delcom [command_name]\" to delete commands.\
+			Currently PotatoBot only supports text commands :("
+		self.display(text)
 	# make a new "!addcomO" that overwrites existing command(s)
 
 	def check_command(self, name, text):
@@ -146,10 +151,9 @@ class Bot():
 
 		all_comms = self.get_comms()
 
-
 		if name in all_comms:
 			print "command already exists..."
-			self.s.send("PRIVMSG %s :%s already exists.\r\n" % channel,)
+			self.s.send("PRIVMSG " + channel + " :" + name +" already exists.\r\n")
 			return
 		else:
 			print "making new command..."
@@ -202,30 +206,41 @@ class Bot():
 
 
 	def use_command(self, name):
-		name = name.strip("\r\n")
+		name = name.strip("\r\n")[1:] # removes ! at beginning and \n at end
 		print "starting usecommand: %s" % name
 
 		f = open("commands.txt", "r")
 		comm_list = f.readlines()
 
+		found = False
+
 		for comms in comm_list:
-			comms = comms.split(":", 2)
+			comms = comms.split(":", 1)
 
 			Command = comms[0] # actual command
-			Text = comms[1].strip('\n') # what command outputs
+			Text = comms[1].rstrip('\n') # output of command
+			print "command is [%s] -- text is [%s]" % (Command, Text)
 
+			print "name [%s] -- command [%s]" %(str(name).lower(), str(Command).lower())
+			try:
+				if str(name).lower() == "comms":
+					self.display_comms()
+					found = True
+				elif str(name).lower() == "help":
+					print "displaying help..."
+					self.display_help()
+					found = True
+				elif str(name).lower() == str(Command).lower():
+					print Text
+					self.s.send("PRIVMSG #potatozero :"+Text+"\r\n")	
+					found = True
 
-			if str(name).lower() == "!comms":
-				self.display_comms()
-				f.close()
-				return
+				if found:
+					f.close()
+					return
+			except Exception as e:
+				print e
 
-
-			elif str(name).lower() == str(Command).lower():
-				print Text
-				self.s.send("PRIVMSG #potatozero :"+Text+"\r\n")	
-				f.close()
-				return
 
 
 		f.close()
@@ -237,10 +252,14 @@ class Bot():
 
 		all_comms = self.get_comms()
 
+		if command_name == "comms" or command_name == "help":
+			self.s.send("PRIVMSG " + channel + " :Stop it.")
+			return
+
 
 		if command_name in all_comms:
 			print "exists already"
-			self.s.send("PRIVMSG %s :%s already exists."% (channel, str(command_name)))
+			self.s.send("PRIVMSG " + command + " :" + command_name + " already exists.")
 			return
 			
 
@@ -260,18 +279,22 @@ class Bot():
 	def start(self):
 		# while not self.connected: -- EDIT THIS TO ENSURE THAT IT'S ALWAYS CONNECTED
 		self.connect()
-
-
+		print "connected..."
 		self.start_connection()
 
 
 network = 'irc.twitch.tv'
+oauth = "oauth:rf53yw4q06mooxt3sdsiylvzuita7u" 
 
-
-channel = '#potatozero'
 nick = 'tobotatop'
 
 if __name__ == '__main__':
+	print sys.argv
+	if len(sys.argv) == 1:
+		channel = '#potatozero'
+	else:
+		channel = '#' + str(sys.argv[1])
+
 	bot = Bot(network, channel, nick, oauth)
 	bot.start()
 
@@ -280,4 +303,4 @@ if __name__ == '__main__':
 # MAKES SURE YOU CAN'T USE THIS BOT UNLESS YOU ARE ON THE USER'S COMPUTER
 # ONCE A COMPUTER (IP ADDRESS) HAS BEEN "ESTABLISHED", IF ANOTHER IP ADDRESS REQUESTS ACCESS TO BOT, SEND EMAIL LIKE STEAM
 
-# USE PYTHON LOGGING TO KEEP TRACK OF WHAT COMMANDS HAVE BEEN USED
+    # USE PYTHON LOGGING TO KEEP TRACK OF WHAT COMMANDS HAVE BEEN USED
