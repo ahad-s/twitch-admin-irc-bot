@@ -9,20 +9,30 @@ import multiprocessing
 
 port = 6667
 
+network = 'irc.twitch.tv'
 
-class Bot():
+nick = 'tobotatop'
 
-	def __init__(self, network, channel, nick, password):
 
-		self.s = socket.socket()
+
+class Bot(object):
+
+	def __init__(self, network, channel, nick, password, scraper=False):
+
+		self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		self.s.settimeout(300)
 
 		self.password = password
 		self.nick = nick
 		self.channel = channel
 		self.network = network
+		self.scraper = scraper
+
+		# print password, nick, channel, network
 
 		self.connected = False
+
+		self.log_file = open(channel[1:] + ".txt", "a+") if self.scraper else None
 
 
 	def connect(self):
@@ -33,23 +43,33 @@ class Bot():
 		self.s.send('USER %s 0 * : owner\r\n' % self.nick )
 		self.s.send('NICK %s\r\n' % self.nick )
 		self.s.send('JOIN %s\r\n' % self.channel)
-		
-		self.s.send('PRIVMSG %s : Hi! I\'m Potato Bot!\r\n' % self.channel)
-
-
+		if not self.scraper:
+			self.s.send('PRIVMSG %s : Hi! I\'m Potato Bot! Type !help if u a noob.\r\n' % self.channel)
 
 	def recv_data(self):
 		
-		data = self.s.recv(1024)
+		# data = self.s.recv(1024)
 
 		while True: # while connected, check with self.connect()
 			data = self.s.recv(1024)
 
+			print data
+
 			if len(data) == 0:
 				break
 				# instead of break, make it reconnect to server
-			self.parse_data(data)
+
+			if 'PING' in data:
+				self.pong(data)
+				continue
+
+			if self.scraper:
+				self.scrape_data(data)
+			else:
+				self.parse_data(data)
+
 		self.s.close()
+		print "fail"
 		exit(0)
 
 	def pong(self, data):
@@ -58,35 +78,41 @@ class Bot():
 		self.s.send('PONG ' + pong_server + "\r\n")
 		return
 
+
+	def parse_raw_privmsg(self, data):
+		split = data.split(" ",3)
+
+		user = split[0].split(":")[1].split("!")[0]
+		command = split[1].upper()
+		channel = split[2].replace("#","")
+		msg = split[3][1:]
+		# msg = msg[1:]
+
+		return user, command, channel, msg
+
+
+	def scrape_data(self, data):
+		if 'PRIVMSG' in data:
+			try:
+				usr, cmd, chann, msg = self.parse_raw_privmsg(data)
+				self.log_file.write(msg)
+			except Exception as e:
+				print e
+		else:
+			print data
+
 	def parse_data(self, data):
-
-		if 'PING' in data:
-			self.pong(data)
-			return
-
-
-		# print data
 
 		if 'PRIVMSG' in data:
 			try:
-				split = data.split(" ",3)
-
-				user = split[0].split(":")[1].split("!")[0]
-				command = split[1].upper()
-				channel = split[2].replace("#","")
-				msg = split[3]
-				msg = msg.replace(msg[0], "")
+				user, command, channel, msg = self.parse_raw_privmsg(data)
 
 				data = "[+] %s: %s" % (user, msg)
 
-				print data
-
 				if msg.lower() == "!leave\r\n":
-					print "ending..."
+					self.display("PEACE OUT Y'ALL")
 					self.s.close()
 					exit(0)
-
-				# addcomS = "!addcom"
 
 				command = msg.split(" ", 2)[0]
 
@@ -113,6 +139,9 @@ class Bot():
 				print e
 		else:
 			print data
+		# print 'NAMES %s\r\n' % self.channel
+		# self.s.send('NAMES %s\r\n' % self.channel)
+		# print self.s.recv(1024)
 
 	def get_comms(self):
 		with open("commands.txt", "r") as f:
@@ -202,9 +231,6 @@ class Bot():
 
 		t.close()
 
-
-
-
 	def use_command(self, name):
 		name = name.strip("\r\n")[1:] # removes ! at beginning and \n at end
 		print "starting usecommand: %s" % name
@@ -283,9 +309,16 @@ class Bot():
 		self.start_connection()
 
 
-network = 'irc.twitch.tv'
+class Scraper(object):
 
-nick = 'tobotatop'
+	# channel = channel to scrape 	
+ 	def __init__(self, channel):
+ 		self.b = Bot(network, channel, nick, oauth, scraper=True)
+
+ 	def start(self):
+ 		self.b.start()
+
+
 
 if __name__ == '__main__':
 	print sys.argv
@@ -294,8 +327,11 @@ if __name__ == '__main__':
 	else:
 		channel = '#' + str(sys.argv[1])
 
-	bot = Bot(network, channel, nick, oauth)
-	bot.start()
+	# bot = Bot(network, channel, nick, oauth)
+	# bot.start()
+
+	scpr = Scraper(channel)
+	scpr.start()
 
 # TODO
 # CONNECT THE IRC BOT TO THE ADMIN'S ACCOUNT USING HWID OR IP CHECK (BAD IDEA, FIND ALTERNATIVE)
