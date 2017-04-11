@@ -13,6 +13,7 @@ network = 'irc.twitch.tv'
 
 nick = 'tobotatop'
 
+oauth = 'oauth:lhfysevk56yfuu1vky74rcfsnm7xq3'
 
 
 class Bot(object):
