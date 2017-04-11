@@ -6,6 +6,8 @@ import os
 from datetime import datetime
 import multiprocessing
 
+import tensorflow as tf
+
 
 port = 6667
 
@@ -13,7 +15,7 @@ network = 'irc.twitch.tv'
 
 nick = 'tobotatop'
 
-oauth = 'oauth:lhfysevk56yfuu1vky74rcfsnm7xq3'
+# oauth = 'oauth:lhfysevk56yfuu1vky74rcfsnm7xq3'
 
 
 class Bot(object):
@@ -321,6 +323,7 @@ class Scraper(object):
 
 
 
+
 if __name__ == '__main__':
 	print sys.argv
 	if len(sys.argv) == 1:
@@ -333,6 +336,9 @@ if __name__ == '__main__':
 
 	scpr = Scraper(channel)
 	scpr.start()
+
+
+
 
 # TODO
 # CONNECT THE IRC BOT TO THE ADMIN'S ACCOUNT USING HWID OR IP CHECK (BAD IDEA, FIND ALTERNATIVE)
