@@ -13,3 +13,4 @@ Type "!addcom [command_name] [command_text]" to add a new command!
 
 Type "!delcom [command_name]" to delete command!
 
+(in progress) text chat generator for emulating chat as if it were another popular channel, built using an encoder-decoder RNN model in TensorFlow
