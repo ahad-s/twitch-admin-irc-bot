@@ -1,6 +1,8 @@
-from tensorflow.contrib.rnn import LSTMCell, DropoutWrapper, MultiRNNCell
+from tensorflow.contrib.rnn import LSTMCell, DropoutWrapper, \
+							MultiRNNCell, BasicLSTMCell
+from tensorflow.contrib.legacy_seq2seq.python.ops import seq2seq
 
-import tensorflow as tk
+import tensorflow as tf
 
 import numpy as np
 import nltk
@@ -28,9 +30,9 @@ class DataStream(object):
 		self.randomize_data()
 
 	def get_next_batch(self):
-		X = self.x[batch_start:min(batch_start+batch_size, self.size-1), :]
-		Y = self.y[batch_start:min(batch_start+batch_size, self.size-1), :]
-		batch_start += batch_size
+		X = self.x[self.batch_start:min(self.batch_start+self.batch_size, self.size-1), :]
+		Y = self.y[self.batch_start:min(self.batch_start+self.batch_size, self.size-1), :]
+		self.batch_start += self.batch_size
 		return X, Y
 
 	def randomize_data(self):
@@ -77,6 +79,8 @@ def text_to_sentences(fname = "esea.txt"):
 	print "----------------"
 	print x_train.shape
 
+	return x_train, y_train
+
 
 # one-hot encoded sentences
 # note: our seq2seq is always given correct inputs even with bad prediction
@@ -93,7 +97,9 @@ def skynet(x, y):
 	word_emb_dim = 256
 	batch_size = 128 # test this out
 
-	dropout = tf.placeholder(tf.float)
+	print "Initializing TF..."
+
+	dropout = tf.placeholder(tf.float32)
 
 	encode_in = [tf.placeholder(tf.int32, shape=(None, ), name="ei_%i" %i)
 					for i in xrange(max_in_size)]
@@ -102,7 +108,7 @@ def skynet(x, y):
 
 	# decode_in must be shifted one right 
 	decode_in = [tf.zeros_like(encode_in[0], dtype=np.int32, name="GO")] + \
-					labels[:-j1]
+					labels[:-1]
 
 	keep_probability = tf.placeholder("float")
 
@@ -112,14 +118,14 @@ def skynet(x, y):
 
 	stack_lstm = MultiRNNCell(cells)
 
-	with tf.variable_scape("decoders") as scope:
+	with tf.variable_scope("decoders") as scope:
 		decode_out, decode_state = seq2seq.embedding_rnn_seq2seq(
-			encode_in, decode_in, stack_lstm, max_in_size, max_out_size)
+			encode_in, decode_in, stack_lstm, max_in_size, max_out_size, vocab_num)
 
 		scope.reuse_variables()
 
 		decode_out_test, decode_state_test = seq2seq.embedding_rnn_seq2seq(
-			encode_in, decode_in, stack_lstm, max_in_size, max_out_size)
+			encode_in, decode_in, stack_lstm, max_in_size, max_out_size, vocab_num)
 
 	loss_weights = [tf.ones_like(lab, dtype=tf.float32) for lab in labels]
 	loss = seq2seq.sequence_loss(decode_out, labels, loss_weights, max_out_size)
@@ -128,30 +134,37 @@ def skynet(x, y):
 
 	sess.run(tf.initialize_all_variables())
 
+	print "TF initialized!"
+
 	# TRAINING STUFF #
 
 	# given x, y, convert for input into tf
 	def get_feed_dict(x, y):
+		print "getting feed dict..."
 		feed = {encode_in[i]: x[i] for i in xrange(max_in_size)}
-		feed.update({labels[i]: y[i] for i in xrange(max_in_size)})
+		feed.update({labels[i]: y[i] for i in xrange(max_out_size)})
 		return feed
 
 	def train_batch(data_stream):
+		print "training batch..."
 		X, Y = data_stream.get_next_batch()
 		feed_dict = get_feed_dict(X, Y)
-		feed_dict[keep_prob] = 0.5
+		feed_dict[keep_probability] = 0.5
 		_, out = sess.run([train_op, loss], feed_dict)
 
 	def get_eval_batch_data(data_stream):
+		print "getting eval batch data..."
 		X, Y = data_stream.get_next_batch()
 		feed_dict = get_feed_dict(X, Y)
-		feed_dict[keep_prob] = 1
+		feed_dict[keep_probability] = 1
 		all_output = sess.run([loss] + decode_out_test, feed_dict)
 		eval_loss = all_output[0]
 		decode_out = np.array(all_output[1:].tranpose([1, 0, 2]))
 		return eval_loss, decode_out, X, Y
 
+	# takes in number of batches to test for
 	def eval_batch(data_stream, num_batch):
+		print "evaling batch..."
 		losses = []
 		pred_loss = []
 		for i in xrange(num_batch):
@@ -168,11 +181,23 @@ def skynet(x, y):
 	epochs = 1000
 	check_every = 50
 
+	print "Starting training..."
+
 	for i in xrange(epochs):
+		if i % check_every == 0:
+			# only check cost on one batch, since dataset is small right now
+			l, pred_l = eval_batch(train_stream, 1)
+			print l, pred_l
 		try:
 			train_batch(train_stream)
 		except KeyboardInterrupt:
 			print "INTERRUPTED BY FAM"
+
+	print "##########################################"
+	print "#########################################"#
+	l, p = eval_batch(train_stream, 1)
+
+	print l, p
 
 	# TESTING STUFF - todo get more data#
 
@@ -180,4 +205,5 @@ def skynet(x, y):
 
 
 
-# text_to_sentences()
+x, y = text_to_sentences()
+skynet(x, y)
